@@ -492,8 +492,70 @@ Date:   Thu Nov 28 16:06:22 2019 +0800
 ```
 
 ## 基于远程版本库PR基质的多人协作(开源项目模式)（海亮完成）
+### 向项目负责人pull-request(基于多个远程仓库)
+项目负责人定义为开发者，协作开发人定义为贡献者，实现多人协作开发，操作流程如下：
+第一步：从开发者的远程仓库（以github为例）fork当前代码仓库，这时在自己的github上将会生成一个一模一样的项目，此项目包含开发者所有的代码提交版本，在本地clone自己远程仓库的fork下来的项目
+```shell
+$ git init
+Initialized empty Git repository in E:/mynode/.git/
+$ git clone https://github.com/Ryan-Keith/node.git（自己本地仓库项目地址）
+Cloning into 'node'...
+remote: Enumerating objects: 17, done.
+remote: Counting objects: 100% (17/17), done.
+remote: Compressing objects: 100% (11/11), done.
+remote: Total 17 (delta 4), reused 15 (delta 2), pack-reused 0
+Unpacking objects: 100% (17/17), done.
+```
+第二步：由于是fork下来的项目，在使用git clone到本地时，这个时候的remote其实是原项目的地址，这时需要做的是删除原项目（开发者）地址的链接，git remote remove origin，这样就切断了原远程连接，接下来需要做的是建立一个新的远程仓库（这个仓库是自己的github仓库，而非开发者的），这里建议使用ssh key重新建立连接
+```shell
+$ git remote rm origin(这个时候输入git remote -v是查看不到有该origin链接存在的)
+$ git remote add other git@github.com:Ryan-Keith/node.git
+$ git remote -v
+other   git@github.com:Ryan-Keith/node.git (fetch)
+other   git@github.com:Ryan-Keith/node.git (push)
+```
+第三步：修改或添加文件，git push最新版本到自己的远程仓库，进入自己fork下的项目地址，找到new pull request按钮，如下图：
+![](image/project.png)
+进入之后，如图选择，有Base 和 Head 两个选项。Base 是你希望提交变更的目标，Head 是目前包含你的变更的那个分支或仓库。
+![](image/request.png)
+填写说明，帮助别人理解你的提交，然后按下"create pull request"按钮即可。
+PR 创建后，管理者就要决定是否接受该 PR
+![](image/describe.png)
+
+### 向项目负责人pull-request(基于单个远程仓库)
+第一步：在远程仓库下新建一个分支供协作开发的人使用，如：dev分支，在本地clone远程仓库项目，在本地新建一个dev分支与远程dev分支同步，建立本地与远程仓库的链接
+第二步：在本地修改或添加文件，切换到本地的dev分支，提交版本，将当前版本push到远程仓库的dev分支上
+```shell
+zuohailiang@SZ19330_06 MINGW64 /e/nodes/node (dev)
+$ git add bbb.js
+
+zuohailiang@SZ19330_06 MINGW64 /e/nodes/node (dev)
+$ git commit -m 'add bbb.js'
+[dev 8237347] add bbb.js
+ 1 file changed, 2 insertions(+)
+ create mode 100644 bbb.js
+
+zuohailiang@SZ19330_06 MINGW64 /e/nodes/node (dev)
+$ git push other dev
+Enumerating objects: 4, done.
+Counting objects: 100% (4/4), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (2/2), done.
+Writing objects: 100% (3/3), 293 bytes | 293.00 KiB/s, done.
+Total 3 (delta 1), reused 0 (delta 0)
+remote: Resolving deltas: 100% (1/1), completed with 1 local object.
+To https://github.com/zuohailiang/nodes.git
+   2c584b0..8237347  dev -> dev
+```
+第三步：进入远程仓库，点击项目中的New pull request按钮，进入之后，做如下图操作：
+![](image/pullrequest.png)
+第四步：在做下一次的pull request之前，将远程仓库的master分支pull到本地
 
 ## 基于分支结构的多人协作(本地小团队模式)(海亮完成)
+### 不使用pull-request，直接向开发分支dev推送
+第一步：项目负责人在远程仓库新建一个dev分支作为开发分支，协作开发者clone下来远程仓库项目，默认在开发者本地只有一个master分支，创建远程的dev分支到本地git checkout -b dev origin/dev<br>
+第二步：协作开发者在自己本地的dev分支上做修改提交，然后试图推送到远程仓库的dev分支上，如果推送失败，则因为远程分支比你的本地更新，需要先用git pull试图合并；如果合并有冲突，则解决冲突，并在本地提交；没有冲突或者解决掉冲突后，再用git push 推送，推送成功后切换本地的master分支，合并dev分支<br>
+第三步：负责人同步更新远程仓库master分支和dev分支
 
 ## 补充
 
