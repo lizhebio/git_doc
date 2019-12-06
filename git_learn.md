@@ -1,4 +1,4 @@
-## 单人模式
+## 单版本库操作
 整个git受控的文件夹构成一个版本库。文件在版本库中存在三个阶段，工作区（working directory）是我们在当前仓库中直接打开文件时能看到的版本；版本库（repository）是当前版本库与其他版本库交流（pull，push）时使用的版本。
 
 ![](image/repository.png)
@@ -163,28 +163,26 @@ $cat readme
 This line will be the first commit.
 ```
 ### git受控文件范围
+编译类语言以C语言为例在编译过程中会产生.o和可执行程序的二进制文件。git是基于文本格式的diff进行版本控制，对二进制文件无能为力，只能以整个文件做为控制单元。因此必须限定git受控的文件范围为图片和文本文件。
 
-## 多人协作
-多人共同完成一个项目时，每人维护一个分布式版本库。通过`git push`和`git pull`分别向目标版本仓库推送来拉回版本。
-### 用户环境变量
+当使用`git add .` 时是使用linux系统当前文件夹的简写，会将当前文件夹下的所有文件包括二进制文件全部加入暂存区。因此对于python的程序，要使用`git add *py`的形式进行。
 
-git版本库用于标识用户的变量有`user.name`和`user.email`。使用`git config user.name "Jilong Liu"`和`git config user.email "liujilong@genomics.cn"`分别设置。当以上命令添加`--golbal`选项时为git的全局变量，会对所有未设置局部变量的项目起作用。
+### git分支控制
+![](image/git-branch-model.png)
+- master：长存，稳定分支，用于生产环境
+- develop：长存，开发分支，用于分配和合并开发任务
+- feature：需要时建立，合并后删除。特征分支。为从dev分支中分出的具体开发任务，开发完成后合并回dev分支
+- release：需要时建立，合并后删除。发布分支。为dev分支完成阶段性开发后，送测试使用。测试过程中的bug在该分支中修复后**同时向dev分支和master分支**推送。
+- hotfix：需要时建立，合并后删除。缺陷分支。为生产环境出现紧急bug时建立以实现debug，修改完成后**同时向dev分支和master分支**推送。
 
-使用`git config --list`可以查看当前设置：
-```shell
-$git config --list
-http.sslverify=true
-http.sslcapath=/home/peta/anaconda3/ssl/cacert.pem
-http.sslcainfo=/home/peta/anaconda3/ssl/cacert.pem
-user.email=wangyujue1@genomics.cn
-user.name=wangyujue1
-core.repositoryformatversion=0
-core.filemode=true
-core.bare=false
-core.logallrefupdates=true
-receive.denycurrentbranch=warn
-user.name=Jilong Liu
-```
+因此，需要理解：
+1. 管理员需要同时维护dev和master两个分支；
+1. master分支本身永远不要做commit向前提交，其版本向前仅由分支合并驱动；
+1. 在项目初始化后，dev和master分支的同步来源于release分支或hotfix分支同时向两者的提交；
+1. 多人合作开发完善不同的功能应当在feature分支完成。
+
+## 多版本库/分支间交互
+`git push`和`git pull`分别向目标版本仓库推送来拉回版本。其中`git pull`是`git fetch`和`git merge`的简写。
 
 ### 场景设置
 保持前文单人场景下的增量模式完成时的版本库，记为Repo1，`git clone`复制Repo1，生成Repo2。 在Repo2中修改使得Repo2的结构为：
@@ -490,15 +488,89 @@ Date:   Thu Nov 28 16:06:22 2019 +0800
 
     first commit
 ```
+## 多人协作
+多人共同完成一个项目时，使用git的分支机制完成，分为项目团队协作和开源项目协作两个应用场景。以下**定义项目的创建者为管理员，项目的协同参与者为开发者**。
+### 用户环境变量
+git使用环境变量 记录当前操作者的身份。git版本库用于标识用户的变量有`user.name`和`user.email`。使用`git config user.name "Jilong Liu"`和`git config user.email "liujilong@genomics.cn"`分别设置。当以上命令添加`--golbal`选项时为git的全局变量，会对所有未设置局部变量的项目起作用。
 
-## 基于远程版本库PR基质的多人协作(开源项目模式)（海亮完成）
-### 向项目负责人pull-request(基于多个远程仓库)
-项目负责人定义为开发者，协作开发人定义为贡献者，实现多人协作开发，操作流程如下：
-第一步：从开发者的远程仓库（以github为例）fork当前代码仓库，这时在自己的github上将会生成一个一模一样的项目，此项目包含开发者所有的代码提交版本，在本地clone自己远程仓库的fork下来的项目
+使用`git config --list`可以查看当前设置：
 ```shell
-$ git init
-Initialized empty Git repository in E:/mynode/.git/
-$ git clone https://github.com/Ryan-Keith/node.git（自己本地仓库项目地址）
+$git config --list
+http.sslverify=true
+http.sslcapath=/home/peta/anaconda3/ssl/cacert.pem
+http.sslcainfo=/home/peta/anaconda3/ssl/cacert.pem
+user.email=wangyujue1@genomics.cn
+user.name=wangyujue1
+core.repositoryformatversion=0
+core.filemode=true
+core.bare=false
+core.logallrefupdates=true
+receive.denycurrentbranch=warn
+user.name=Jilong Liu
+```
+
+### 项目团队协作(gitlab为例)
+项目团队共同开发一项目时，管理员创建项目，并为项目组团队分配权限如下：
+![](image/project_member.png)
+管理员初始化项目，并建立dev分支，此时该项目下共有master和dev两个分支。
+
+当开发者承接某个具体的开发事项时，`git clone` 项目到本地，并使用`git config`配制开发者签名。此时本地版本库只包含master分支，开发者基于远程库的dev分支建立当前开发所使用的feature分支，并在feature分支中完成开发。
+```shell
+$git clone ssh://git@gitlab.genomics.cn:2200/liujilong/git_doc.git
+Cloning into 'git_doc'...
+remote: Enumerating objects: 14, done.
+remote: Counting objects: 100% (14/14), done.
+remote: Compressing objects: 100% (13/13), done.
+remote: Total 14 (delta 1), reused 0 (delta 0)
+Receiving objects: 100% (14/14), 131.52 KiB | 6.58 MiB/s, done.
+Resolving deltas: 100% (1/1), done.
+
+$cd git_doc/
+
+$git branch -a
+* master
+  remotes/origin/HEAD -> origin/master
+  remotes/origin/dev
+  remotes/origin/master
+
+$git branch feature origin/dev
+Branch 'feature' set up to track remote branch 'dev' from 'origin'.
+
+$git switch feature
+Switched to branch 'feature'
+Your branch is up to date with 'origin/dev'.
+```
+本地开发完成后向远程版本库提交，此时只能提交同名分支：
+```shell
+$git push origin feature
+Total 0 (delta 0), reused 0 (delta 0)
+remote: 
+remote: To create a merge request for feature, visit:
+remote:   https://gitlab.genomics.cn/liujilong/git_doc/merge_requests/new?merge_request%5Bsource_branch%5D=feature
+remote: 
+To ssh://gitlab.genomics.cn:2200/liujilong/git_doc.git
+ * [new branch]      feature -> feature
+```
+此时在网页端项目页会出现feature分支，点击进入feature分支，并点击`create merge request`按钮
+![](image/create_merge_request.png)
+如果此时远程库中的dev分支已经发生了向前的commit，则会提示冲突，需要使用`git pull` 拉回后在本地解决冲突后再上传发起合并流程。
+
+在设置页中正确填写From、to和描述及审核者后，点击`submit merge request`提交。
+![](image/request_detail.png)
+
+此种协作形式会**引入审核机制**，管理员会收到邮件提醒，进入gitlab中可以选择接收或者驳回。
+
+当合并完成后，**开发者应删除feature分支。在开始下一个具体开发事项时，重新从远程dev分支建立本地feature分支进行开发**。
+
+#### 引申
+git 的分布式特征决定远程库和本地库的地方完全相同，仅为同一个版本库的clone。但gitlab提供了`merge request`，github提供了`pull request`，使得代码审核机制成为可能。项目团队当然也可以直接在本地创建多个版本库，直接进入本地推送。
+
+### 开源项目协作(以github为例)
+在开源项目协作场景下，管理员建立项目并初始化dev分支。该项目人人可见，但不是该项目的开发者。此时开发者要参与到该项目需要先fork该项目，会在开发者账号下生成一个同名项目，其实就是远程版本的`git clone`，但新生成的项目开发者有修改权限。
+
+开发者从自己fork后的远程仓库使用`git clone`同步到本地：
+```shell
+$ git clone https://github.com/Ryan-Keith/node.git #（自己本地仓库项目地址）
 Cloning into 'node'...
 remote: Enumerating objects: 17, done.
 remote: Counting objects: 100% (17/17), done.
@@ -506,15 +578,7 @@ remote: Compressing objects: 100% (11/11), done.
 remote: Total 17 (delta 4), reused 15 (delta 2), pack-reused 0
 Unpacking objects: 100% (17/17), done.
 ```
-第二步：由于是fork下来的项目，在使用git clone到本地时，这个时候的remote其实是原项目的地址，这时需要做的是删除原项目（开发者）地址的链接，git remote remove origin，这样就切断了原远程连接，接下来需要做的是建立一个新的远程仓库（这个仓库是自己的github仓库，而非开发者的），这里建议使用ssh key重新建立连接
-```shell
-$ git remote rm origin(这个时候输入git remote -v是查看不到有该origin链接存在的)
-$ git remote add other git@github.com:Ryan-Keith/node.git
-$ git remote -v
-other   git@github.com:Ryan-Keith/node.git (fetch)
-other   git@github.com:Ryan-Keith/node.git (push)
-```
-第三步：修改或添加文件，git push最新版本到自己的远程仓库，进入自己fork下的项目地址，找到new pull request按钮，如下图：
+修改或添加文件，git push最新版本到自己的远程仓库，进入自己fork下的项目地址，找到new pull request按钮，如下图：
 ![](image/project.png)
 进入之后，如图选择，有Base 和 Head 两个选项。Base 是你希望提交变更的目标，Head 是目前包含你的变更的那个分支或仓库。
 ![](image/request.png)
@@ -522,44 +586,40 @@ other   git@github.com:Ryan-Keith/node.git (push)
 PR 创建后，管理者就要决定是否接受该 PR
 ![](image/describe.png)
 
-### 向项目负责人pull-request(基于单个远程仓库)
-第一步：在远程仓库下新建一个分支供协作开发的人使用，如：dev分支，在本地clone远程仓库项目，在本地新建一个dev分支与远程dev分支同步，建立本地与远程仓库的链接
-第二步：在本地修改或添加文件，切换到本地的dev分支，提交版本，将当前版本push到远程仓库的dev分支上
-```shell
-zuohailiang@SZ19330_06 MINGW64 /e/nodes/node (dev)
-$ git add bbb.js
-
-zuohailiang@SZ19330_06 MINGW64 /e/nodes/node (dev)
-$ git commit -m 'add bbb.js'
-[dev 8237347] add bbb.js
- 1 file changed, 2 insertions(+)
- create mode 100644 bbb.js
-
-zuohailiang@SZ19330_06 MINGW64 /e/nodes/node (dev)
-$ git push other dev
-Enumerating objects: 4, done.
-Counting objects: 100% (4/4), done.
-Delta compression using up to 8 threads
-Compressing objects: 100% (2/2), done.
-Writing objects: 100% (3/3), 293 bytes | 293.00 KiB/s, done.
-Total 3 (delta 1), reused 0 (delta 0)
-remote: Resolving deltas: 100% (1/1), completed with 1 local object.
-To https://github.com/zuohailiang/nodes.git
-   2c584b0..8237347  dev -> dev
-```
-第三步：进入远程仓库，点击项目中的New pull request按钮，进入之后，做如下图操作：
-![](image/pullrequest.png)
-第四步：在做下一次的pull request之前，将远程仓库的master分支pull到本地
-
-## 基于分支结构的多人协作(本地小团队模式)(海亮完成)
-### 不使用pull-request，直接向开发分支dev推送
-第一步：项目负责人在远程仓库新建一个dev分支作为开发分支，协作开发者clone下来远程仓库项目，默认在开发者本地只有一个master分支，创建远程的dev分支到本地git checkout -b dev origin/dev<br>
-第二步：协作开发者在自己本地的dev分支上做修改提交，然后试图推送到远程仓库的dev分支上，如果推送失败，则因为远程分支比你的本地更新，需要先用git pull试图合并；如果合并有冲突，则解决冲突，并在本地提交；没有冲突或者解决掉冲突后，再用git push 推送，推送成功后切换本地的master分支，合并dev分支<br>
-第三步：负责人同步更新远程仓库master分支和dev分支
+#### 引申
+在引入fork机制后，因为完整复制了版本库，此时可以在两个版本库的master分支之间进行操作。
 
 ## 补充
 
 ### man help
+```shell
+NAME
+       git-branch - List, create, or delete branches
+
+SYNOPSIS
+       git branch [--color[=<when>] | --no-color] [-r | -a]
+               [--list] [-v [--abbrev=<length> | --no-abbrev]]
+               [--column[=<options>] | --no-column]
+               [(--merged | --no-merged | --contains) [<commit>]] [<pattern>...]
+       git branch [--set-upstream | --track | --no-track] [-l] [-f] <branchname> [<start-point>]
+       git branch (--set-upstream-to=<upstream> | -u <upstream>) [<branchname>]
+       git branch --unset-upstream [<branchname>]
+       git branch (-m | -M) [<oldbranch>] <newbranch>
+       git branch (-d | -D) [-r] <branchname>...
+       git branch --edit-description [<branchname>]
+
+DESCRIPTION
+       If --list is given, or if there are no non-option arguments, existing branches are listed; the current branch will be highlighted with an asterisk. Option -r causes the
+       remote-tracking branches to be listed, and option -a shows both local and remote branches. If a <pattern> is given, it is used as a shell wildcard to restrict the output to
+       matching branches. If multiple patterns are given, a branch is shown if it matches any of the patterns. Note that when providing a <pattern>, you must use --list; otherwise the
+       command is interpreted as branch creation.
+
+       With --contains, shows only the branches that contain the named commit (in other words, the branches whose tip commits are descendants of the named commit). With --merged, only
+       branches merged into the named commit (i.e. the branches whose tip commits are reachable from the named commit) will be listed. With --no-merged only branches not merged into the
+       named commit will be listed. If the <commit> argument is missing it defaults to HEAD (i.e. the tip of the current branch).
+
+       The command’s second form creates a new branch head named <branchname> which points to the current HEAD, or <start-point> if given.
+```
 
 ### diff结果理解
 Index: 两个版本的git hash value\
@@ -570,7 +630,5 @@ Index: 两个版本的git hash value\
 
 ### 分布式的思考
 git是分布式版本管理系统，svn为中心化版本管理系统。svn在客户端不维护版本，客户端的改动均需提交到服务器端后才进行受控，也只能从服务器端拉回其他人的修改。git在本地维护版本库，版本库可自由复制，同个项目的不同版本库之间地位相同，当前版本库可向任意其他版本库推送、从其他任意版本库拉回修改。github等远程仓库存在的意义仅为方便交换。
-
-### git文件受控范围
 
 ### git协作过程中账号系统的理解
